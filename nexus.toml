@@ -1,0 +1,11 @@
+[host]
+name=
+domain=
+
+[source]
+branch=
+root_directory=
+
+[deploy]
+build_command=
+publish_directory=

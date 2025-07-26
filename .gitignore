@@ -1,3 +1,7 @@
 # Python
 env
+__pycache__
 .python-version
+
+# Testing
+__test*
