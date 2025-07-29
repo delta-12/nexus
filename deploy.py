@@ -17,7 +17,10 @@ class Deployment:
         self.steps.extendleft(steps)
 
     def run_next_step(self) -> tuple[int, str]:
-        return self.steps.pop().run(self.environment)
+        step = self.steps.pop()
+        exit_code, output = step.run(self.environment)
+        self.add_steps(step.get_next_steps())
+        return exit_code, output
 
     def run_all_steps(self) -> tuple[int, str]:
         exit_code = 0
