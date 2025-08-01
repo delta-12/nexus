@@ -9,7 +9,8 @@ BASE_DIRECTORY = "/tmp"
 
 
 class Images(StrEnum):
-    STATIC_HOST = "d3lta12/nexus/static-host"
+    REVERSE_PROXY = "d3lta12/nexus-reverse-proxy"
+    STATIC_HOST = "d3lta12/nexus-static-host"
 
 
 class Environment(ABC):

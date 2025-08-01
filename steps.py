@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from collections import deque
 from enum import StrEnum, auto
 import logging
 from tomllib import loads, TOMLDecodeError
@@ -7,6 +6,8 @@ from tomllib import loads, TOMLDecodeError
 from environment import Environment
 
 LOGGER = logging.getLogger(__name__)
+BASE_CERTIFICATE_PATH = "/etc/letsencrypt/live/"
+DEFAULT_CERTIFICATE_NAME = "nexus"
 
 
 class HostFields(StrEnum):
@@ -103,9 +104,9 @@ class BuildSource(Step):
         return environment.run_command(f"sh -c '{self.build_command}'")
 
 
-class BuildNginxConfig(Step):
+class BuildNginxStaticSiteConfig(Step):
     def __init__(self, config_file: str, domain: str, publish_directory: str) -> None:
-        super().__init__("Build Nginx Config")
+        super().__init__("Build Nginx Static Site Config")
         self.config_file = config_file
         self.domain = domain
         self.publish_directory = publish_directory
@@ -125,12 +126,93 @@ class BuildNginxConfig(Step):
             f"sh -c 'echo \"{config}\" > /etc/nginx/http.d/site.conf'"
         )
 
+
+class BuildNginxReverseProxyConfig(Step):
+    def __init__(
+        self,
+        domain: str,
+        upstream: str,
+        certificate_name: str = DEFAULT_CERTIFICATE_NAME,
+    ) -> None:
+        super().__init__("Build Nginx Reverse Proxy Config")
+        self.domain = domain
+        self.upstream = upstream
+        self.path_to_certificate = (
+            BASE_CERTIFICATE_PATH + certificate_name + "/fullchain.pem"
+        )
+        self.path_to_key = BASE_CERTIFICATE_PATH + certificate_name + "/privkey.pem"
+
+    def run_action(self, environment: Environment) -> tuple[int, str]:
+        config = (
+            "server {\n"
+            "\tlisten 443 ssl;\n"
+            f"\tserver_name {self.domain} www.{self.domain};\n\n"
+            f"\tssl_certificate {self.path_to_certificate};\n"
+            f"\tssl_certificate_key {self.path_to_key};\n\n"
+            "\tlocation / {\n"
+            f"\t\tproxy_pass http://{self.upstream}:80;\n"
+            "\t\tproxy_set_header   X-Forwarded-For $remote_addr;\n"
+            "\t\tproxy_set_header   Host $http_host;\n"
+            "\t}\n"
+            "}\n\n"
+            "server {\n"
+            "\tlisten 80;\n"
+            f"\tserver_name {self.domain} www.{self.domain};\n\n"
+            "\treturn 301 https://$host$request_uri;\n"
+            "}\n"
+        )
+
+        return environment.run_command(
+            f"sh -c 'echo \"{config}\" > /etc/nginx/http.d/{self.domain}.conf'"
+        )
+
+
 class TestNginxConfig(Step):
     def __init__(self) -> None:
         super().__init__("Test Nginx Config")
 
     def run_action(self, environment: Environment) -> tuple[int, str]:
         return environment.run_command("nginx -t")
+
+
+class ReloadNginx(Step):
+    def __init__(self) -> None:
+        super().__init__("Reload Nginx")
+
+    def run_action(self, environment: Environment) -> tuple[int, str]:
+        return environment.run_command("nginx -s reload")
+
+
+class AddDomainToCertificate(Step):
+    def __init__(
+        self,
+        domain: str,
+        email: str,
+        certificate_name: str = DEFAULT_CERTIFICATE_NAME,
+    ) -> None:
+        super().__init__("Add Domain to Certificate")
+        self.domain = domain
+        self.email = email
+        self.certificate_name = certificate_name
+
+    def run_action(self, environment: Environment) -> tuple[int, str]:
+        certificate_exists = False  # TODO check if certificate exists
+        if certificate_exists:
+            # TODO acquire exisiting domains
+            pass
+        return environment.run_command(
+            "sh -c 'certbot "
+            "--agree-tos "
+            f"-m {self.email} "
+            "certonly "
+            "--nginx "
+            "--preferred-challenges http "
+            f"-d {self.domain} "
+            "--redirect "
+            "--non-interactive "
+            f"--cert-name {self.certificate_name}'"
+        )
+
 
 class ReadNexusConfig(Step):
     def __init__(self, config_file: str) -> None:
@@ -168,11 +250,13 @@ class ReadNexusConfig(Step):
         if "deploy" in config and 0 == exit_code:
             deploy = config["deploy"]
             if DeployFields.BUILD_COMMAND in deploy:
-                self.next_steps.append(
-                    BuildSource(deploy[DeployFields.BUILD_COMMAND])
-                )
+                self.next_steps.append(BuildSource(deploy[DeployFields.BUILD_COMMAND]))
             if DeployFields.PUBLISH_DIRECTORY in deploy:
-                self.publish_directory = deploy[DeployFields.PUBLISH_DIRECTORY]
+                self.publish_directory = (
+                    environment.get_working_directory()
+                    + "/"
+                    + deploy[DeployFields.PUBLISH_DIRECTORY]
+                )
             else:
                 self.publish_directory = environment.get_working_directory()
 
@@ -188,9 +272,11 @@ class ReadNexusConfig(Step):
         else:
             try:
                 exit_code, output = self.parse(loads(output), environment)
-                # TODO append step build nginx conf based on domain and publish directory
+                # TODO conditionally add steps to build configs for other deployments if applicable
                 self.next_steps.append(
-                    BuildNginxConfig("config.conf", self.domain, self.publish_directory)
+                    BuildNginxStaticSiteConfig(
+                        "config.conf", self.domain, self.publish_directory
+                    )  # TODO fix typing
                 )
                 self.next_steps.append(TestNginxConfig())
             except TOMLDecodeError:
