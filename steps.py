@@ -120,8 +120,6 @@ class BuildNginxStaticSiteConfig(Step):
             "}\n"
         )
 
-        print(config)
-
         return environment.run_command(
             f"sh -c 'echo \"{config}\" > /etc/nginx/http.d/site.conf'"
         )
@@ -196,22 +194,39 @@ class AddDomainToCertificate(Step):
         self.certificate_name = certificate_name
 
     def run_action(self, environment: Environment) -> tuple[int, str]:
-        certificate_exists = False  # TODO check if certificate exists
-        if certificate_exists:
-            # TODO acquire exisiting domains
-            pass
-        return environment.run_command(
-            "sh -c 'certbot "
-            "--agree-tos "
-            f"-m {self.email} "
-            "certonly "
-            "--nginx "
-            "--preferred-challenges http "
-            f"-d {self.domain} "
-            "--redirect "
-            "--non-interactive "
-            f"--cert-name {self.certificate_name}'"
+        domains_path = f"/etc/letsencrypt/live/{self.certificate_name}/domains.txt"
+        exit_code, output = environment.run_command(
+            f"sh -c'if [ ! -e {domains_path} ]; then echo \"\"; else cat {domains_path}; fi'"
         )
+        if 0 != exit_code:
+            pass
+        elif self.domain in output.split(","):
+            exit_code = -1
+            output = "Domain already added to certificate"
+        else:
+            domains = output
+            if 0 != len(domains):
+                domains += ","
+            domains += self.domain
+            exit_code, output = environment.run_command(
+                "sh -c 'certbot "
+                "--agree-tos "
+                f"-m {self.email} "
+                "certonly "
+                "--nginx "
+                "--preferred-challenges http "
+                f"-d {domains} "
+                "--redirect "
+                "--non-interactive "
+                f"--cert-name {self.certificate_name}'"
+            )
+
+            if 0 == exit_code:
+                exit_code, output = environment.run_command(
+                    f"sh -c 'echo {domains} > {domains_path}'"
+                )
+
+        return exit_code, output
 
 
 class ReadNexusConfig(Step):
