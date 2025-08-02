@@ -6,6 +6,7 @@ from docker import from_env
 
 CLIENT = from_env()
 BASE_DIRECTORY = "/tmp"
+DEFAULT_CONTAINER_NETWORK = "nexus-net"
 
 
 class Images(StrEnum):
@@ -15,7 +16,10 @@ class Images(StrEnum):
 
 class Environment(ABC):
     def __init__(
-        self, name: str = "", working_directory: str = BASE_DIRECTORY, variables: dict = {}
+        self,
+        name: str = "",
+        working_directory: str = BASE_DIRECTORY,
+        variables: dict = {},
     ) -> None:
         self.variables = {}
         self.set_name(name)
@@ -61,10 +65,14 @@ class ContainerEnvironment(Environment):
         container_name: str = "",
         container_image: str = Images.STATIC_HOST,
         working_directory: str = BASE_DIRECTORY,
+        network: str = DEFAULT_CONTAINER_NETWORK,
         variables: dict = {},
     ) -> None:
         super().__init__(working_directory=working_directory, variables=variables)
-        self.container = CLIENT.containers.run(container_image, detach=True)
+        # TODO add container to network
+        self.container = CLIENT.containers.run(
+            container_image, network=network, detach=True
+        )
         self.set_name(container_name)
 
     def set_name(self, name: str) -> None:
