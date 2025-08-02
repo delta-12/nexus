@@ -64,16 +64,20 @@ class ContainerEnvironment(Environment):
         self,
         container_name: str = "",
         container_image: str = Images.STATIC_HOST,
+        container_network: str = DEFAULT_CONTAINER_NETWORK,
         working_directory: str = BASE_DIRECTORY,
-        network: str = DEFAULT_CONTAINER_NETWORK,
         variables: dict = {},
     ) -> None:
         super().__init__(working_directory=working_directory, variables=variables)
-        # TODO add container to network
-        self.container = CLIENT.containers.run(
-            container_image, network=network, detach=True
-        )
+        self.container = CLIENT.containers.run(container_image, detach=True)
         self.set_name(container_name)
+        if len(container_network) > 0:
+            networks = CLIENT.networks.list(names=[container_network])
+            if 0 == len(networks):
+                network = CLIENT.networks.create(container_network)
+            else:
+                network = networks[0]
+            network.connect(self.container)
 
     def set_name(self, name: str) -> None:
         if "" != name:
