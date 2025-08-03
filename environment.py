@@ -86,6 +86,7 @@ class ContainerEnvironment(Environment):
         if "" != name:
             self.name = name
             self.container.rename(self.name)
+            self.container.reload()
             super().set_name(name)
 
     def get_name(self) -> str | None:
