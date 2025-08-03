@@ -89,7 +89,7 @@ class ContainerEnvironment(Environment):
             super().set_name(name)
 
     def get_name(self) -> str | None:
-        self.container.name
+        return self.container.name
 
     def run_commands(self, commands: list[str]) -> tuple[int, str]:
         exit_code = 0
