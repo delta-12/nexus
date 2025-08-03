@@ -216,7 +216,7 @@ class AddDomainToCertificate(Step):
             exit_code = -1
             output = "Domain already added to certificate"
         else:
-            domains = output
+            domains = output[:-1]
             if 0 != len(domains):
                 domains += ","
             domains += self.domain
