@@ -315,6 +315,7 @@ class ReadNexusConfig(Step):
                         )
                     )
                     self.next_steps.append(TestNginxConfig())
+                    self.next_steps.append(ReloadNginx())
             except TOMLDecodeError:
                 exit_code = -1
                 output = f"Config file {self.config_file} is invalid"
