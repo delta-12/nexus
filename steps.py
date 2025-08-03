@@ -208,7 +208,7 @@ class AddDomainToCertificate(Step):
     def run_action(self, environment: Environment) -> tuple[int, str]:
         domains_path = f"/etc/letsencrypt/live/{self.certificate_name}/domains.txt"
         exit_code, output = environment.run_command(
-            f"sh -c'if [ ! -e {domains_path} ]; then echo \"\"; else cat {domains_path}; fi'"
+            f"sh -c 'if [ ! -e {domains_path} ]; then echo \"\"; else cat {domains_path}; fi'"
         )
         if 0 != exit_code:
             pass
