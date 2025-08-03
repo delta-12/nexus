@@ -161,14 +161,15 @@ class BuildNginxReverseProxyConfig(Step):
             f"\tssl_certificate_key {self.path_to_key};\n\n"
             "\tlocation / {\n"
             f"\t\tproxy_pass http://{self.upstream}:80;\n"
-            "\t\tproxy_set_header   X-Forwarded-For $remote_addr;\n"
-            "\t\tproxy_set_header   Host $http_host;\n"
+            "\t\tproxy_set_header Host \\$host;\n"
+            "\t\tproxy_set_header X-Real-IP \\$remote_addr;\n"
+            "\t\tproxy_set_header X-Forwarded-For \\$remote_addr;\n"
             "\t}\n"
             "}\n\n"
             "server {\n"
             "\tlisten 80;\n"
             f"\tserver_name {self.domain} www.{self.domain};\n\n"
-            "\treturn 301 https://$host$request_uri;\n"
+            "\treturn 301 https://\\$host\\$request_uri;\n"
             "}\n"
         )
 
