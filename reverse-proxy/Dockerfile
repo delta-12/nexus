@@ -1,6 +1,6 @@
 FROM alpine:latest
 RUN apk -U upgrade
-RUN apk add --update --no-cache nginx
+RUN apk add --update --no-cache nginx certbot certbot-nginx
 
 RUN rm /etc/nginx/http.d/*
 
