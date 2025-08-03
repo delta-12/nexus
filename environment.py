@@ -65,11 +65,14 @@ class ContainerEnvironment(Environment):
         container_name: str = "",
         container_image: str = Images.STATIC_HOST,
         container_network: str = DEFAULT_CONTAINER_NETWORK,
+        container_ports: dict = {},
         working_directory: str = BASE_DIRECTORY,
         variables: dict = {},
     ) -> None:
         super().__init__(working_directory=working_directory, variables=variables)
-        self.container = CLIENT.containers.run(container_image, detach=True)
+        self.container = CLIENT.containers.run(
+            container_image, ports=container_ports, detach=True
+        )
         self.set_name(container_name)
         if len(container_network) > 0:
             networks = CLIENT.networks.list(names=[container_network])

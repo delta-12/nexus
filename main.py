@@ -19,7 +19,8 @@ logging.basicConfig(level=logging.INFO)
 def main() -> int:
     repo = input("Enter repo to deploy: ")
     reverse_proxy_environment = ContainerEnvironment(
-        container_image=Images.REVERSE_PROXY
+        container_image=Images.REVERSE_PROXY,
+        container_ports={"80/tcp": 80, "443/tcp": 443},
     )
     reverse_proxy_deployment = Deployment(
         reverse_proxy_environment, "nexus-reverse-proxy"
