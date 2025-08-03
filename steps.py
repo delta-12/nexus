@@ -6,6 +6,7 @@ from tomllib import loads, TOMLDecodeError
 from environment import Environment
 
 LOGGER = logging.getLogger(__name__)
+DEFAULT_CONFIG_FILE = "nexus.toml"
 BASE_CERTIFICATE_PATH = "/etc/letsencrypt/live/"
 DEFAULT_CERTIFICATE_NAME = "nexus"
 
@@ -13,6 +14,7 @@ DEFAULT_CERTIFICATE_NAME = "nexus"
 class HostFields(StrEnum):
     NAME = auto()
     DOMAIN = auto()
+    EMAIL = auto()
 
 
 class SourceFields(StrEnum):
@@ -25,12 +27,19 @@ class DeployFields(StrEnum):
     PUBLISH_DIRECTORY = auto()
 
 
+class Properties(StrEnum):
+    NAME = auto()
+    DOMAIN = auto()
+    EMAIL = auto()
+
+
 class Step(ABC):
     def __init__(self, name: str) -> None:
         self.name = name
         self.exit_code = None
         self.output = None
         self.next_steps = []
+        self.properties = {}
 
     @abstractmethod
     def run_action(self, environment: Environment) -> tuple[int, str]:
@@ -40,6 +49,9 @@ class Step(ABC):
 
     def get_next_steps(self) -> list:
         return self.next_steps
+
+    def get_properties(self) -> dict:
+        return self.properties
 
     def run(self, environment: Environment) -> tuple[int, str]:
         LOGGER.info(f"Step: {self.name}")
@@ -230,10 +242,9 @@ class AddDomainToCertificate(Step):
 
 
 class ReadNexusConfig(Step):
-    def __init__(self, config_file: str) -> None:
+    def __init__(self, config_file: str = DEFAULT_CONFIG_FILE) -> None:
         super().__init__("Read Nexus Config")
         self.config_file = config_file
-        self.domain = None
         self.publish_directory = None
 
     def parse(self, config: dict, environment: Environment) -> tuple[int, str]:
@@ -241,14 +252,20 @@ class ReadNexusConfig(Step):
         output = ""
         if "host" in config:
             host = config["host"]
-            if HostFields.NAME in host:
-                self.next_steps.append(SetName(host[HostFields.NAME]))
-            if HostFields.DOMAIN in host:
-                self.domain = host[HostFields.DOMAIN]
-            else:
+            if HostFields.NAME not in host:
+                exit_code = -1
+                output = "Missing name"
+            elif HostFields.DOMAIN not in host:
                 # TODO set sub-domain based on name if domain not provide (e.g. subdomain.domain.toplevel)
                 exit_code = -1
                 output = "Missing domain"
+            elif HostFields.EMAIL not in host:
+                exit_code = -1
+                output = "Missing email"
+            else:
+                self.next_steps.append(SetName(host[HostFields.NAME]))
+                self.properties[Properties.DOMAIN] = host[HostFields.DOMAIN]
+                self.properties[Properties.EMAIL] = host[HostFields.EMAIL]
         else:
             exit_code = -1
             output = "Missing host"
@@ -288,12 +305,15 @@ class ReadNexusConfig(Step):
             try:
                 exit_code, output = self.parse(loads(output), environment)
                 # TODO conditionally add steps to build configs for other deployments if applicable
-                self.next_steps.append(
-                    BuildNginxStaticSiteConfig(
-                        "config.conf", self.domain, self.publish_directory
-                    )  # TODO fix typing
-                )
-                self.next_steps.append(TestNginxConfig())
+                if 0 == exit_code:
+                    self.next_steps.append(
+                        BuildNginxStaticSiteConfig(
+                            "config.conf",
+                            self.properties[Properties.DOMAIN],
+                            self.publish_directory,
+                        )
+                    )
+                    self.next_steps.append(TestNginxConfig())
             except TOMLDecodeError:
                 exit_code = -1
                 output = f"Config file {self.config_file} is invalid"
