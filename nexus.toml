@@ -1,11 +1,12 @@
 [host]
-name=
-domain=
+name =
+domain =
+email =
 
 [source]
-branch=
-root_directory=
+branch =
+root_directory =
 
 [deploy]
-build_command=
-publish_directory=
+build_command =
+publish_directory =

@@ -6,15 +6,20 @@ from docker import from_env
 
 CLIENT = from_env()
 BASE_DIRECTORY = "/tmp"
+DEFAULT_CONTAINER_NETWORK = "nexus-net"
 
 
 class Images(StrEnum):
-    STATIC_HOST = "d3lta12/nexus/static-host"
+    REVERSE_PROXY = "d3lta12/nexus-reverse-proxy"
+    STATIC_HOST = "d3lta12/nexus-static-host"
 
 
 class Environment(ABC):
     def __init__(
-        self, name: str = "", working_directory: str = BASE_DIRECTORY, variables: dict = {}
+        self,
+        name: str = "",
+        working_directory: str = BASE_DIRECTORY,
+        variables: dict = {},
     ) -> None:
         self.variables = {}
         self.set_name(name)
@@ -59,21 +64,33 @@ class ContainerEnvironment(Environment):
         self,
         container_name: str = "",
         container_image: str = Images.STATIC_HOST,
+        container_network: str = DEFAULT_CONTAINER_NETWORK,
+        container_ports: dict = {},
         working_directory: str = BASE_DIRECTORY,
         variables: dict = {},
     ) -> None:
         super().__init__(working_directory=working_directory, variables=variables)
-        self.container = CLIENT.containers.run(container_image, detach=True)
+        self.container = CLIENT.containers.run(
+            container_image, ports=container_ports, detach=True
+        )
         self.set_name(container_name)
+        if len(container_network) > 0:
+            networks = CLIENT.networks.list(names=[container_network])
+            if 0 == len(networks):
+                network = CLIENT.networks.create(container_network)
+            else:
+                network = networks[0]
+            network.connect(self.container)
 
     def set_name(self, name: str) -> None:
         if "" != name:
             self.name = name
             self.container.rename(self.name)
+            self.container.reload()
             super().set_name(name)
 
     def get_name(self) -> str | None:
-        self.container.name
+        return self.container.name
 
     def run_commands(self, commands: list[str]) -> tuple[int, str]:
         exit_code = 0
