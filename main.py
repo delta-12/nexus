@@ -12,6 +12,7 @@ from steps import (
 import logging
 
 LOGGER = logging.getLogger(__name__)
+REVERSR_PROXY_NAME = "nexus-reverse-proxy"
 
 logging.basicConfig(level=logging.INFO)
 
@@ -19,11 +20,12 @@ logging.basicConfig(level=logging.INFO)
 def main() -> int:
     repo = input("Enter repo to deploy: ")
     reverse_proxy_environment = ContainerEnvironment(
+        container_name=REVERSR_PROXY_NAME,
         container_image=Images.REVERSE_PROXY,
         container_ports={"80/tcp": 80, "443/tcp": 443},
     )
     reverse_proxy_deployment = Deployment(
-        reverse_proxy_environment, "nexus-reverse-proxy"
+        reverse_proxy_environment, REVERSR_PROXY_NAME
     )
     environment = ContainerEnvironment()
     deployment = Deployment(environment)
