@@ -70,13 +70,12 @@ class ContainerEnvironment(Environment):
         variables: dict = {},
     ) -> None:
         super().__init__(working_directory=working_directory, variables=variables)
-        if 0 != len(container_name):
-            try:
-                self.container = CLIENT.containers.get(container_name)
-            except errors.NotFound:
-                self.container = CLIENT.containers.run(
-                    container_image, ports=container_ports, detach=True
-                )
+        try:
+            self.container = CLIENT.containers.get(container_name)
+        except errors.NotFound:
+            self.container = CLIENT.containers.run(
+                container_image, ports=container_ports, detach=True
+            )
         self.set_name(container_name)
         if len(container_network) > 0:
             networks = CLIENT.networks.list(names=[container_network])
