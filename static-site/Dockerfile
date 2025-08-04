@@ -1,6 +1,8 @@
 FROM alpine:latest
 RUN apk -U upgrade
-RUN apk add --update --no-cache git nginx npm
+RUN apk add --update --no-cache git git-lfs nginx npm
+
+RUN git lfs install
 
 EXPOSE 80
 EXPOSE 443

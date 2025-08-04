@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from enum import StrEnum
 from typing import Any
 
-from docker import from_env
+from docker import from_env, errors
 
 CLIENT = from_env()
 BASE_DIRECTORY = "/tmp"
@@ -70,9 +70,12 @@ class ContainerEnvironment(Environment):
         variables: dict = {},
     ) -> None:
         super().__init__(working_directory=working_directory, variables=variables)
-        self.container = CLIENT.containers.run(
-            container_image, ports=container_ports, detach=True
-        )
+        try:
+            self.container = CLIENT.containers.get(container_name)
+        except (errors.NotFound, errors.NullResource):
+            self.container = CLIENT.containers.run(
+                container_image, ports=container_ports, detach=True
+            )
         self.set_name(container_name)
         if len(container_network) > 0:
             networks = CLIENT.networks.list(names=[container_network])
@@ -80,10 +83,12 @@ class ContainerEnvironment(Environment):
                 network = CLIENT.networks.create(container_network)
             else:
                 network = networks[0]
-            network.connect(self.container)
+            network.reload()
+            if self.container not in network.containers:
+                network.connect(self.container)
 
     def set_name(self, name: str) -> None:
-        if "" != name:
+        if "" != name and self.container.name != name:
             self.name = name
             self.container.rename(self.name)
             self.container.reload()
