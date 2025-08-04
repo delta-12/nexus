@@ -72,7 +72,7 @@ class ContainerEnvironment(Environment):
         super().__init__(working_directory=working_directory, variables=variables)
         try:
             self.container = CLIENT.containers.get(container_name)
-        except errors.NotFound:
+        except errors.NotFound or errors.NullResource:
             self.container = CLIENT.containers.run(
                 container_image, ports=container_ports, detach=True
             )
@@ -83,11 +83,12 @@ class ContainerEnvironment(Environment):
                 network = CLIENT.networks.create(container_network)
             else:
                 network = networks[0]
+            network.reload()
             if self.container not in network.containers:
                 network.connect(self.container)
 
     def set_name(self, name: str) -> None:
-        if "" != name:
+        if "" != name and self.container.name != name:
             self.name = name
             self.container.rename(self.name)
             self.container.reload()
