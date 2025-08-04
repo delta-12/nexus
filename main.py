@@ -24,9 +24,7 @@ def main() -> int:
         container_image=Images.REVERSE_PROXY,
         container_ports={"80/tcp": 80, "443/tcp": 443},
     )
-    reverse_proxy_deployment = Deployment(
-        reverse_proxy_environment, REVERSR_PROXY_NAME
-    )
+    reverse_proxy_deployment = Deployment(reverse_proxy_environment, REVERSR_PROXY_NAME)
     environment = ContainerEnvironment()
     deployment = Deployment(environment)
     deployment.add_step(GitClone(repo))

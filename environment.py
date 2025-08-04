@@ -72,7 +72,7 @@ class ContainerEnvironment(Environment):
         super().__init__(working_directory=working_directory, variables=variables)
         try:
             self.container = CLIENT.containers.get(container_name)
-        except errors.NotFound or errors.NullResource:
+        except (errors.NotFound, errors.NullResource):
             self.container = CLIENT.containers.run(
                 container_image, ports=container_ports, detach=True
             )
