@@ -124,9 +124,20 @@ class ListMenu(Menu):
 
     def on_update(self, stack: Stack) -> None:
         if self.index is not None and self.index in range(len(self.choices)):
-            stack.push(self.choices[self.index].get_next_menu())
+            next_menu = self.choices[self.index].get_next_menu()
+            if next_menu is not None:
+                stack.push(next_menu)
 
 
 class TextMenu(Menu):
+    def __init__(self, title: str, prompt: str) -> None:
+        super().__init__(title, prompt)
+
     def on_display(self) -> str:
         return ""
+
+    def on_select(self, selection: str) -> bool:
+        return False
+
+    def on_update(self, stack: Stack) -> None:
+        return
