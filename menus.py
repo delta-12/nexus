@@ -1,5 +1,7 @@
 from deploy import Deployment
 from environment import ContainerEnvironment, Images
+import logging
+from menu import Choice, ListMenu, Stack, TextMenu
 from steps import (
     AddDomainToCertificate,
     BuildNginxReverseProxyConfig,
@@ -9,31 +11,11 @@ from steps import (
     ReloadNginx,
     TestNginxConfig,
 )
-import logging
-from menu import ListMenu, Stack, TextMenu
 
 LOGGER = logging.getLogger(__name__)
 REVERSR_PROXY_NAME = "nexus-reverse-proxy"
 
 logging.basicConfig(level=logging.INFO)
-
-
-class MainMenu(ListMenu):
-    def __init__(self) -> None:
-        super().__init__("Main Menu", "Select option: ", {"New deployment": None})
-
-    def on_update(self, stack: Stack) -> None:
-        if 0 == self.index:
-            stack.push(NewDeploymentMenu())
-
-
-class NewDeploymentMenu(ListMenu):
-    def __init__(self) -> None:
-        super().__init__("New Deployment", "Select option: ", {"Static site": None})
-
-    def on_update(self, stack: Stack) -> None:
-        if 0 == self.index:
-            stack.push(StaticSiteMenu())
 
 
 class StaticSiteMenu(TextMenu):
@@ -76,4 +58,40 @@ class StaticSiteMenu(TextMenu):
         return valid
 
     def on_update(self, stack: Stack) -> None:
-        stack.push(MainMenu())
+        return
+
+
+NEW_DEPLOYMENT_CHOICES = [
+    {"title": "Static Site", "callback": None, "next_menu": StaticSiteMenu()}
+]
+
+NEW_DEPLOYMENT_MENU = {
+    "title": "New Deployment",
+    "prompt": "Select option: ",
+    "choices": [Choice(**choice) for choice in NEW_DEPLOYMENT_CHOICES],
+}
+
+TEARDOWN_DEPLOYMENT_MENU = {
+    "title": "Teardown Deployment",
+    "prompt": "Select deployment: ",
+    "choices": [],  # TODO get current deployments
+}
+
+MAIN_MENU_CHOICES = [
+    {
+        "title": "New Deployment",
+        "callback": None,
+        "next_menu": ListMenu(**NEW_DEPLOYMENT_MENU),
+    },
+    {
+        "title": "Teardown Deployment",
+        "callback": None,
+        "next_menu": ListMenu(**TEARDOWN_DEPLOYMENT_MENU),
+    },
+]
+
+MAIN_MENU = ListMenu(
+    title="Main Menu",
+    prompt="Select option: ",
+    choices=[Choice(**choice) for choice in MAIN_MENU_CHOICES],
+)
