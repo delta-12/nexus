@@ -62,6 +62,7 @@ class MenuContext:
 
     def show(self) -> None:
         while not self.stack.is_empty():
+            print("\033c")
             menu = self.stack.pop()
             print(menu.display())
             selection = input(menu.get_prompt())
