@@ -1,7 +1,10 @@
 from collections import deque
+import sqlite3
 
-from environment import Environment
+from environment import Environment, ContainerEnvironment
 from steps import Step, Properties
+
+DATABASE_NAME = "nexus.db"
 
 
 class Deployment:
@@ -10,6 +13,7 @@ class Deployment:
         self.environment = environment
         self.environment.set_name(name)
         self.properties = {}
+        self.id = None
 
     def get_property(self, property: str) -> str | None:
         value = None
@@ -23,6 +27,46 @@ class Deployment:
         for property, value in properties.items():
             if property in Properties:
                 self.properties[property] = value
+
+    def save(self) -> None:
+        with sqlite3.connect(DATABASE_NAME) as database:
+            cursor = database.cursor()
+            cursor.execute(
+                f"""
+                    CREATE TABLE IF NOT EXISTS deployments (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        {Properties.NAME} TEXT UNIQUE,
+                        {Properties.DOMAIN} TEXT UNIQUE,
+                        {Properties.EMAIL} TEXT,
+                        environment TEXT
+                    )
+                """
+            )
+            if self.id is None:
+                cursor.execute("INSERT INTO deployments DEFAULT VALUES")
+                self.id = cursor.lastrowid
+            cursor.execute(
+                f"""
+                    UPDATE deployments
+                    SET {Properties.NAME} = ?, environment = ?
+                    WHERE id = ?
+                """,
+                (
+                    self.get_property(Properties.NAME),
+                    type(self.environment).__name__,
+                    self.id,
+                ),
+            )
+            for property, value in self.properties.items():
+                cursor.execute(
+                    f"""
+                        UPDATE deployments
+                        SET {property} = ?
+                        WHERE id = ?
+                    """,
+                    (value, self.id),
+                )
+            database.commit()
 
     def add_step(self, step: Step) -> None:
         self.steps.appendleft(step)
@@ -45,3 +89,18 @@ class Deployment:
             if 0 != exit_code:
                 break
         return exit_code, output
+
+
+def get_deployments() -> list[Deployment]:
+    deployments = []
+    with sqlite3.connect(DATABASE_NAME) as database:
+        cursor = database.cursor()
+        cursor.execute("SELECT * FROM deployments")
+        for row in cursor.fetchall():
+            environment_type = row[4]
+            environment = None
+            if ContainerEnvironment.__name__ == environment_type:
+                environment = ContainerEnvironment(container_name=row[1])
+            if environment is not None:
+                deployments.append(Deployment(environment))
+    return deployments
