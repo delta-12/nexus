@@ -99,7 +99,8 @@ NEW_DEPLOYMENT_MENU = {
 TEARDOWN_DEPLOYMENT_MENU = {
     "title": "Teardown Deployment",
     "prompt": "Select deployment: ",
-    "choices": [
+    "choices": [],
+    "refresh_choices": lambda choices: [
         Choice(
             title=str(deployment.get_property(Properties.NAME)),
             callback=lambda: teardown(deployment),

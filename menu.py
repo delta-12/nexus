@@ -81,7 +81,7 @@ class Choice:
     def __init__(
         self,
         title: str,
-        callback: Callable | None = None,
+        callback: Callable[[], None] | None = None,
         next_menu: Menu | None = None,
     ) -> None:
         self.title = title
@@ -100,13 +100,22 @@ class Choice:
 
 
 class ListMenu(Menu):
-    def __init__(self, title: str, prompt: str, choices: list[Choice]) -> None:
+    def __init__(
+        self,
+        title: str,
+        prompt: str,
+        choices: list[Choice],
+        refresh_choices: Callable[[list[Choice]], list[Choice]] | None = None,
+    ) -> None:
         super().__init__(title, prompt)
         self.choices = choices
         self.selection = None
         self.index = None
+        self.refresh_choices = refresh_choices
 
     def on_display(self) -> str:
+        if self.refresh_choices is not None:
+            self.choices = self.refresh_choices(self.choices)
         choices = ""
         for index, choice in enumerate(self.choices):
             choices += f"    {index + 1}. {choice.get_title()}\n"
