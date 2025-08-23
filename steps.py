@@ -87,6 +87,14 @@ class SetName(Step):
         return 0, ""
 
 
+class TeardownEnvironment(Step):
+    def __init__(self) -> None:
+        super().__init__("Teardown Environment")
+
+    def run_action(self, environment: Environment) -> tuple[int, str]:
+        return environment.teardown()
+
+
 class GitClone(Step):
     def __init__(self, repository: str) -> None:
         super().__init__("Git Clone")
@@ -178,6 +186,17 @@ class BuildNginxReverseProxyConfig(Step):
         )
 
 
+class RemoveNginxConfig(Step):
+    def __init__(self, domain) -> None:
+        super().__init__("Remove Nginx Config")
+        self.domain = domain
+
+    def run_action(self, environment: Environment) -> tuple[int, str]:
+        return environment.run_command(
+            f"sh -c 'rm /etc/nginx/http.d/{self.domain}.conf'"
+        )
+
+
 class TestNginxConfig(Step):
     def __init__(self) -> None:
         super().__init__("Test Nginx Config")
@@ -213,10 +232,7 @@ class AddDomainToCertificate(Step):
         )
         if 0 != exit_code:
             pass
-        elif self.domain in output.split(","):
-            exit_code = -1
-            output = "Domain already added to certificate"
-        else:
+        elif self.domain not in output.split(","):
             domains = output[:-1]
             if 0 != len(domains):
                 domains += ","

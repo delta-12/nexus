@@ -1,3 +1,6 @@
+# Database
+*.db*
+
 # Python
 env
 __pycache__

@@ -53,12 +53,16 @@ class Menu(ABC):
 class MenuContext:
     def __init__(self) -> None:
         self.stack = Stack()
+        self.main_menu = None
 
     def add_menu(self, menu: Menu) -> None:
         self.stack.push(menu)
+        if self.main_menu is None:
+            self.main_menu = menu
 
     def show(self) -> None:
         while not self.stack.is_empty():
+            print("\033c")
             menu = self.stack.pop()
             print(menu.display())
             selection = input(menu.get_prompt())
@@ -66,23 +70,55 @@ class MenuContext:
             valid = menu.on_select(selection)
             if valid:
                 menu.on_update(self.stack)
+                if self.stack.is_empty():
+                    self.stack.push(self.main_menu)
+                    input("Press [Enter] to continue")
             else:
                 self.stack.push(menu)
 
 
+class Choice:
+    def __init__(
+        self,
+        title: str,
+        callback: Callable[[], None] | None = None,
+        next_menu: Menu | None = None,
+    ) -> None:
+        self.title = title
+        self.callback = callback
+        self.next_menu = next_menu
+
+    def get_title(self) -> str:
+        return self.title
+
+    def get_next_menu(self) -> Menu | None:
+        return self.next_menu
+
+    def on_select(self) -> None:
+        if self.callback is not None:
+            self.callback()
+
+
 class ListMenu(Menu):
     def __init__(
-        self, title: str, prompt: str, choices: dict[str, Callable | None]
+        self,
+        title: str,
+        prompt: str,
+        choices: list[Choice],
+        refresh_choices: Callable[[list[Choice]], list[Choice]] | None = None,
     ) -> None:
         super().__init__(title, prompt)
         self.choices = choices
         self.selection = None
         self.index = None
+        self.refresh_choices = refresh_choices
 
     def on_display(self) -> str:
+        if self.refresh_choices is not None:
+            self.choices = self.refresh_choices(self.choices)
         choices = ""
         for index, choice in enumerate(self.choices):
-            choices += f"    {index + 1}. {choice}\n"
+            choices += f"    {index + 1}. {choice.get_title()}\n"
         return choices[:-1]
 
     def on_select(self, selection: str) -> bool:
@@ -91,14 +127,27 @@ class ListMenu(Menu):
             self.index = int(selection) - 1
             if self.index not in range(len(self.choices)):
                 raise IndexError
-            callback = list(self.choices.values())[self.index]
-            if callback is not None:
-                callback()
+            self.choices[self.index].on_select()
         except (ValueError, IndexError):
             valid = False
         return valid
 
+    def on_update(self, stack: Stack) -> None:
+        if self.index is not None and self.index in range(len(self.choices)):
+            next_menu = self.choices[self.index].get_next_menu()
+            if next_menu is not None:
+                stack.push(next_menu)
+
 
 class TextMenu(Menu):
+    def __init__(self, title: str, prompt: str) -> None:
+        super().__init__(title, prompt)
+
     def on_display(self) -> str:
         return ""
+
+    def on_select(self, selection: str) -> bool:
+        return False
+
+    def on_update(self, stack: Stack) -> None:
+        return
