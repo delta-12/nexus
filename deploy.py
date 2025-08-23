@@ -166,6 +166,7 @@ def get_deployments() -> list[Deployment]:
                         environment_data[1]
                     )  # TODO get properties by name from row instead of by index
                 deployment = Deployment(environment)
+                deployment.id = row[0]
                 deployment.set_properties(
                     {Properties.DOMAIN: row[2], Properties.EMAIL: row[3]}
                 )  # TODO get properties by name from row instead of by index
