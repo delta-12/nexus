@@ -1,7 +1,7 @@
-from deploy import Deployment
+from deploy import Deployment, get_deployments
 from environment import ContainerEnvironment, Images
 import logging
-from menu import Choice, ListMenu, Stack, TextMenu
+from menu import Choice, ListMenu, TextMenu
 from steps import (
     AddDomainToCertificate,
     BuildNginxReverseProxyConfig,
@@ -9,6 +9,8 @@ from steps import (
     Properties,
     ReadNexusConfig,
     ReloadNginx,
+    RemoveNginxConfig,
+    TeardownEnvironment,
     TestNginxConfig,
 )
 
@@ -18,20 +20,44 @@ REVERSR_PROXY_NAME = "nexus-reverse-proxy"
 logging.basicConfig(level=logging.INFO)
 
 
+def get_reverse_proxy() -> Deployment:
+    return Deployment(
+        ContainerEnvironment(
+            container_name=REVERSR_PROXY_NAME,
+            container_image=Images.REVERSE_PROXY,
+            container_ports={"80/tcp": 80, "443/tcp": 443},
+        ),
+        REVERSR_PROXY_NAME,
+    )
+
+
+# TODO return and handle exit code
+def teardown(deployment: Deployment) -> None:
+    reverse_proxy_deployment = get_reverse_proxy()
+    reverse_proxy_deployment.add_step(
+        RemoveNginxConfig(deployment.get_property(Properties.DOMAIN))
+    )
+    reverse_proxy_deployment.add_step(TestNginxConfig())
+    reverse_proxy_deployment.add_step(ReloadNginx())
+    exit_code, output = reverse_proxy_deployment.run_all_steps()
+
+    if 0 == exit_code:
+        deployment.add_step(TeardownEnvironment())
+        exit_code, output = deployment.run_all_steps()
+
+    if 0 != exit_code:
+        logging.error(f"Exit code: {exit_code}, Error message {output}")
+    else:
+        deployment.delete()
+
+
 class StaticSiteMenu(TextMenu):
     def __init__(self) -> None:
         super().__init__("Deploy new static site", "Enter repo to deploy: ")
 
     def on_select(self, selection: str) -> bool:
         valid = True
-        reverse_proxy_environment = ContainerEnvironment(
-            container_name=REVERSR_PROXY_NAME,
-            container_image=Images.REVERSE_PROXY,
-            container_ports={"80/tcp": 80, "443/tcp": 443},
-        )
-        reverse_proxy_deployment = Deployment(
-            reverse_proxy_environment, REVERSR_PROXY_NAME
-        )
+        reverse_proxy_deployment = get_reverse_proxy()
         environment = ContainerEnvironment()
         deployment = Deployment(environment)
         deployment.add_step(GitClone(selection))
@@ -54,11 +80,10 @@ class StaticSiteMenu(TextMenu):
             # TODO kill container and prune if failure
             logging.error(f"Exit code: {exit_code}, Error message {output}")
             valid = False
+        else:
+            deployment.save()
 
         return valid
-
-    def on_update(self, stack: Stack) -> None:
-        return
 
 
 NEW_DEPLOYMENT_CHOICES = [
@@ -74,7 +99,13 @@ NEW_DEPLOYMENT_MENU = {
 TEARDOWN_DEPLOYMENT_MENU = {
     "title": "Teardown Deployment",
     "prompt": "Select deployment: ",
-    "choices": [],  # TODO get current deployments
+    "choices": [
+        Choice(
+            title=str(deployment.get_property(Properties.NAME)),
+            callback=lambda: print(deployment.get_property(Properties.NAME)),
+        )
+        for deployment in get_deployments()
+    ],
 }
 
 MAIN_MENU_CHOICES = [
