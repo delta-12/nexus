@@ -58,7 +58,7 @@ def update(deployment: Deployment) -> None:
     if 0 != exit_code:
         logging.error(f"Exit code: {exit_code}, Error message {output}")
     else:
-        deployment.delete()
+        deployment.save()
 
 
 # TODO return and handle exit code
