@@ -153,7 +153,11 @@ def get_deployments() -> list[Deployment]:
                     """,
                     (environment.get_name(),),
                 )
-                environment.set_working_directory(cursor.fetchone()[1])
+                environment_data = cursor.fetchone()
+                if environment_data:
+                    environment.set_working_directory(
+                        environment_data[1]
+                    )  # TODO get properties by name from row instead of by index
                 deployment = Deployment(environment)
                 deployment.set_properties(
                     {Properties.DOMAIN: row[2], Properties.EMAIL: row[3]}
