@@ -102,7 +102,7 @@ TEARDOWN_DEPLOYMENT_MENU = {
     "choices": [
         Choice(
             title=str(deployment.get_property(Properties.NAME)),
-            callback=lambda: print(deployment.get_property(Properties.NAME)),
+            callback=lambda: teardown(deployment),
         )
         for deployment in get_deployments()
     ],
