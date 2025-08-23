@@ -108,6 +108,13 @@ class Deployment:
                 """,
                 (self.get_property(Properties.NAME),),
             )
+            cursor.execute(
+                f"""
+                    DELETE FROM environments
+                    WHERE name = ?
+                """,
+                (self.get_property(Properties.NAME),),
+            )
             database.commit()
 
     def add_step(self, step: Step) -> None:
