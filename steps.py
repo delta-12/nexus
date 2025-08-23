@@ -114,6 +114,12 @@ class GitCheckout(Step):
             [f"git fetch origin {self.branch}", f"git checkout {self.branch}"]
         )
 
+class GitPull(Step):
+    def __init__(self) -> None:
+        super().__init__("Git Pull")
+
+    def run_action(self, environment: Environment) -> tuple[int, str]:
+        return environment.run_command("git pull")
 
 class BuildSource(Step):
     def __init__(self, build_command: str) -> None:
