@@ -75,6 +75,8 @@ class MenuContext:
                     input("Press [Enter] to continue")
             else:
                 self.stack.push(menu)
+                print("Invalid selection.")
+                input("Press [Enter] to continue")
 
 
 class Choice:

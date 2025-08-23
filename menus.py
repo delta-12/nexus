@@ -6,6 +6,7 @@ from steps import (
     AddDomainToCertificate,
     BuildNginxReverseProxyConfig,
     GitClone,
+    GitPull,
     Properties,
     ReadNexusConfig,
     ReloadNginx,
@@ -29,6 +30,35 @@ def get_reverse_proxy() -> Deployment:
         ),
         REVERSR_PROXY_NAME,
     )
+
+
+# TODO return and handle exit code
+def update(deployment: Deployment) -> None:
+    reverse_proxy_deployment = get_reverse_proxy()
+    reverse_proxy_deployment.add_step(
+        RemoveNginxConfig(deployment.get_property(Properties.DOMAIN))
+    )
+    exit_code, output = reverse_proxy_deployment.run_all_steps()
+
+    if 0 == exit_code:
+        deployment.add_step(GitPull())
+        deployment.add_step(ReadNexusConfig())
+        exit_code, output = deployment.run_all_steps()
+
+    if 0 == exit_code:
+        name = deployment.get_property(Properties.NAME)
+        domain = deployment.get_property(Properties.DOMAIN)
+        email = deployment.get_property(Properties.EMAIL)
+        reverse_proxy_deployment.add_step(AddDomainToCertificate(domain, email))
+        reverse_proxy_deployment.add_step(BuildNginxReverseProxyConfig(domain, name))
+        reverse_proxy_deployment.add_step(TestNginxConfig())
+        reverse_proxy_deployment.add_step(ReloadNginx())
+        exit_code, output = reverse_proxy_deployment.run_all_steps()
+
+    if 0 != exit_code:
+        logging.error(f"Exit code: {exit_code}, Error message {output}")
+    else:
+        deployment.save()
 
 
 # TODO return and handle exit code
@@ -96,6 +126,19 @@ NEW_DEPLOYMENT_MENU = {
     "choices": [Choice(**choice) for choice in NEW_DEPLOYMENT_CHOICES],
 }
 
+UPDATE_DEPLOYMENT_MENU = {
+    "title": "Update Deployment",
+    "prompt": "Select deployment: ",
+    "choices": [],
+    "refresh_choices": lambda choices: [
+        Choice(
+            title=str(deployment.get_property(Properties.NAME)),
+            callback=lambda: update(deployment),
+        )
+        for deployment in get_deployments()
+    ],
+}
+
 TEARDOWN_DEPLOYMENT_MENU = {
     "title": "Teardown Deployment",
     "prompt": "Select deployment: ",
@@ -114,6 +157,11 @@ MAIN_MENU_CHOICES = [
         "title": "New Deployment",
         "callback": None,
         "next_menu": ListMenu(**NEW_DEPLOYMENT_MENU),
+    },
+    {
+        "title": "Update Deployment",
+        "callback": None,
+        "next_menu": ListMenu(**UPDATE_DEPLOYMENT_MENU),
     },
     {
         "title": "Teardown Deployment",
