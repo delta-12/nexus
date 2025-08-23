@@ -72,6 +72,7 @@ class MenuContext:
                 menu.on_update(self.stack)
                 if self.stack.is_empty():
                     self.stack.push(self.main_menu)
+                    input("Press [Enter] to continue")
             else:
                 self.stack.push(menu)
 
