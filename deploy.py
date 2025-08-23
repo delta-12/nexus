@@ -68,6 +68,18 @@ class Deployment:
                 )
             database.commit()
 
+    def delete(self) -> None:
+        with sqlite3.connect(DATABASE_NAME) as database:
+            cursor = database.cursor()
+            cursor.execute(
+                f"""
+                    DELETE FROM deployments
+                    WHERE name = ?
+                """,
+                (self.get_property(Properties.NAME),),
+            )
+            database.commit()
+
     def add_step(self, step: Step) -> None:
         self.steps.appendleft(step)
 
@@ -102,5 +114,9 @@ def get_deployments() -> list[Deployment]:
             if ContainerEnvironment.__name__ == environment_type:
                 environment = ContainerEnvironment(container_name=row[1])
             if environment is not None:
-                deployments.append(Deployment(environment))
+                deployment = Deployment(environment)
+                deployment.set_properties(
+                    {Properties.DOMAIN: row[2], Properties.EMAIL: row[3]}
+                )  # TODO get properties by name from row instead of by index
+                deployments.append(deployment)
     return deployments
