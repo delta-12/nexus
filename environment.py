@@ -26,6 +26,14 @@ class Environment(ABC):
         self.set_working_directory(working_directory)
         self.set_variables(variables)
 
+    @abstractmethod
+    def run_commands(self, commands: list[str]) -> tuple[int, str]:
+        return -1, ""
+
+    @abstractmethod
+    def teardown(self) -> tuple[int, str]:
+        return -1, ""
+
     def set_name(self, name: str) -> None:
         self.name = name
 
@@ -53,10 +61,6 @@ class Environment(ABC):
 
     def run_command(self, command: str) -> tuple[int, str]:
         return self.run_commands([command])
-
-    @abstractmethod
-    def run_commands(self, commands: list[str]) -> tuple[int, str]:
-        return 0, ""
 
 
 class ContainerEnvironment(Environment):
@@ -96,6 +100,16 @@ class ContainerEnvironment(Environment):
 
     def get_name(self) -> str | None:
         return self.container.name
+
+    def teardown(self) -> tuple[int, str]:
+        exit_code = 0
+        output = ""
+        try:
+            self.container.remove(force=True)
+        except:
+            exit_code = -1
+            output = f"Failed to remove container {self.get_name()}"
+        return exit_code, output
 
     def run_commands(self, commands: list[str]) -> tuple[int, str]:
         exit_code = 0
