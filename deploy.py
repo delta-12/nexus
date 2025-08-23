@@ -7,6 +7,20 @@ from steps import Step, Properties
 DATABASE_NAME = "nexus.db"
 
 
+def create_deployment_database(cursor: sqlite3.Cursor) -> None:
+    cursor.execute(
+        f"""
+            CREATE TABLE IF NOT EXISTS deployments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                {Properties.NAME} TEXT UNIQUE,
+                {Properties.DOMAIN} TEXT UNIQUE,
+                {Properties.EMAIL} TEXT,
+                environment TEXT
+            )
+        """
+    )
+
+
 class Deployment:
     def __init__(self, environment: Environment, name: str = "") -> None:
         self.steps = deque()
@@ -31,17 +45,7 @@ class Deployment:
     def save(self) -> None:
         with sqlite3.connect(DATABASE_NAME) as database:
             cursor = database.cursor()
-            cursor.execute(
-                f"""
-                    CREATE TABLE IF NOT EXISTS deployments (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        {Properties.NAME} TEXT UNIQUE,
-                        {Properties.DOMAIN} TEXT UNIQUE,
-                        {Properties.EMAIL} TEXT,
-                        environment TEXT
-                    )
-                """
-            )
+            create_deployment_database(cursor)
             if self.id is None:
                 cursor.execute("INSERT INTO deployments DEFAULT VALUES")
                 self.id = cursor.lastrowid
@@ -107,6 +111,7 @@ def get_deployments() -> list[Deployment]:
     deployments = []
     with sqlite3.connect(DATABASE_NAME) as database:
         cursor = database.cursor()
+        create_deployment_database(cursor)
         cursor.execute("SELECT * FROM deployments")
         for row in cursor.fetchall():
             environment_type = row[4]
