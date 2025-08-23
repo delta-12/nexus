@@ -19,6 +19,14 @@ def create_deployment_database(cursor: sqlite3.Cursor) -> None:
             )
         """
     )
+    cursor.execute(
+        f"""
+            CREATE TABLE IF NOT EXISTS environments (
+                name TEXT PRIMARY KEY UNIQUE,
+                working_directory TEXT
+            )
+        """
+    )
 
 
 class Deployment:
@@ -47,6 +55,13 @@ class Deployment:
             cursor = database.cursor()
             create_deployment_database(cursor)
             if self.id is None:
+                cursor.execute(
+                    "INSERT INTO environments (name, working_directory) VALUES (?, ?)",
+                    (
+                        self.get_property(Properties.NAME),
+                        self.environment.get_working_directory(),
+                    ),
+                )
                 cursor.execute("INSERT INTO deployments DEFAULT VALUES")
                 self.id = cursor.lastrowid
             cursor.execute(
@@ -70,6 +85,17 @@ class Deployment:
                     """,
                     (value, self.id),
                 )
+            cursor.execute(
+                f"""
+                    UPDATE environments
+                    SET working_directory = ?
+                    WHERE name = ?
+                """,
+                (
+                    self.get_property(Properties.NAME),
+                    self.environment.get_working_directory(),
+                ),
+            )
             database.commit()
 
     def delete(self) -> None:
@@ -119,6 +145,15 @@ def get_deployments() -> list[Deployment]:
             if ContainerEnvironment.__name__ == environment_type:
                 environment = ContainerEnvironment(container_name=row[1])
             if environment is not None:
+                cursor.execute(
+                    f"""
+                        SELECT *
+                        FROM environments
+                        WHERE name = ?
+                    """,
+                    (environment.get_name(),),
+                )
+                environment.set_working_directory(cursor.fetchone()[1])
                 deployment = Deployment(environment)
                 deployment.set_properties(
                     {Properties.DOMAIN: row[2], Properties.EMAIL: row[3]}
