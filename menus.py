@@ -133,7 +133,7 @@ UPDATE_DEPLOYMENT_MENU = {
     "refresh_choices": lambda choices: [
         Choice(
             title=str(deployment.get_property(Properties.NAME)),
-            callback=lambda: update(deployment),
+            callback=lambda deployment=deployment: update(deployment),
         )
         for deployment in get_deployments()
     ],
@@ -146,7 +146,7 @@ TEARDOWN_DEPLOYMENT_MENU = {
     "refresh_choices": lambda choices: [
         Choice(
             title=str(deployment.get_property(Properties.NAME)),
-            callback=lambda: teardown(deployment),
+            callback=lambda deployment=deployment: teardown(deployment),
         )
         for deployment in get_deployments()
     ],
