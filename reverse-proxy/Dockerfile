@@ -3,7 +3,7 @@ RUN apk -U upgrade
 RUN apk add --update --no-cache nginx certbot certbot-nginx
 
 RUN rm /etc/nginx/http.d/*
-RUN echo "0       0       1       *       *       certbot renew" >> /etc/crontabs/root
+RUN echo "0       */12    *       *       *       certbot renew" >> /etc/crontabs/root
 
 EXPOSE 80
 EXPOSE 443
