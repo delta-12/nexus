@@ -83,7 +83,9 @@ def teardown(deployment: Deployment) -> None:
 
 class StaticSiteMenu(TextMenu):
     def __init__(self) -> None:
-        super().__init__("Deploy new static site", "Enter repo to deploy: ")
+        super().__init__(
+            "Deploy new static site", "Enter repo to deploy (b to go back): ", "b"
+        )
 
     def on_select(self, selection: str) -> bool:
         valid = True
@@ -122,13 +124,15 @@ NEW_DEPLOYMENT_CHOICES = [
 
 NEW_DEPLOYMENT_MENU = {
     "title": "New Deployment",
-    "prompt": "Select option: ",
+    "prompt": "Select option (b to go back): ",
+    "choice_quit": "b",
     "choices": [Choice(**choice) for choice in NEW_DEPLOYMENT_CHOICES],
 }
 
 UPDATE_DEPLOYMENT_MENU = {
     "title": "Update Deployment",
-    "prompt": "Select deployment: ",
+    "prompt": "Select deployment (b to go back): ",
+    "choice_quit": "b",
     "choices": [],
     "refresh_choices": lambda choices: [
         Choice(
@@ -141,7 +145,8 @@ UPDATE_DEPLOYMENT_MENU = {
 
 TEARDOWN_DEPLOYMENT_MENU = {
     "title": "Teardown Deployment",
-    "prompt": "Select deployment: ",
+    "prompt": "Select deployment (b to go back): ",
+    "choice_quit": "b",
     "choices": [],
     "refresh_choices": lambda choices: [
         Choice(
@@ -172,6 +177,7 @@ MAIN_MENU_CHOICES = [
 
 MAIN_MENU = ListMenu(
     title="Main Menu",
-    prompt="Select option: ",
+    prompt="Select option (q to quit): ",
+    choice_quit="q",
     choices=[Choice(**choice) for choice in MAIN_MENU_CHOICES],
 )
