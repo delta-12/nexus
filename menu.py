@@ -25,11 +25,15 @@ class Stack:
             value = self.stack[-1]
         return value
 
+    def size(self) -> int:
+        return len(self.stack)
+
 
 class Menu(ABC):
-    def __init__(self, title: str, prompt: str) -> None:
+    def __init__(self, title: str, prompt: str, choice_quit: str | None = None) -> None:
         self.title = title
         self.prompt = prompt
+        self.choice_quit = choice_quit
 
     @abstractmethod
     def on_display(self) -> str:
@@ -49,6 +53,9 @@ class Menu(ABC):
     def display(self) -> str:
         return f"{self.title}\n{self.on_display()}"
 
+    def quit(self, selection: str) -> bool:
+        return selection == self.choice_quit
+
 
 class MenuContext:
     def __init__(self) -> None:
@@ -63,20 +70,20 @@ class MenuContext:
     def show(self) -> None:
         while not self.stack.is_empty():
             print("\033c")
-            menu = self.stack.pop()
+            menu = self.stack.peek()
             print(menu.display())
             selection = input(menu.get_prompt())
-            # TODO handle selection at context level if necessary (e.g. quit or return to main menu)
-            valid = menu.on_select(selection)
-            if valid:
-                menu.on_update(self.stack)
-                if self.stack.is_empty():
-                    self.stack.push(self.main_menu)
-                    input("Press [Enter] to continue")
+            if menu.quit(selection):
+                self.stack.pop()
             else:
-                self.stack.push(menu)
-                print("Invalid selection.")
-                input("Press [Enter] to continue")
+                if menu.on_select(selection):
+                    size = self.stack.size()
+                    menu.on_update(self.stack)
+                    if self.stack.size() == size:
+                        input("Press [Enter] to continue")
+                else:
+                    print("Invalid selection.")
+                    input("Press [Enter] to continue")
 
 
 class Choice:
@@ -106,10 +113,11 @@ class ListMenu(Menu):
         self,
         title: str,
         prompt: str,
+        choice_quit: str,
         choices: list[Choice],
         refresh_choices: Callable[[list[Choice]], list[Choice]] | None = None,
     ) -> None:
-        super().__init__(title, prompt)
+        super().__init__(title, prompt, choice_quit)
         self.choices = choices
         self.selection = None
         self.index = None
@@ -142,8 +150,8 @@ class ListMenu(Menu):
 
 
 class TextMenu(Menu):
-    def __init__(self, title: str, prompt: str) -> None:
-        super().__init__(title, prompt)
+    def __init__(self, title: str, prompt: str, choice_quit: str) -> None:
+        super().__init__(title, prompt, choice_quit)
 
     def on_display(self) -> str:
         return ""
